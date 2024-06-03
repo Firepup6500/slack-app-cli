@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "fake-app"
+version = "0"
+description = "Fake Slack app"
+authors = ["Firepup Sixfifty <firepyp650@gmail.com>"]
+readme = "README.md"
+packages = [{include = "fake_app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+slack-bolt = "^1.18.1"
+python-dotenv = "^1.0.1"
+firepup650 = "^1.0.35"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
