@@ -14,8 +14,31 @@ for requiredVar in ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"]:
     if not os.environ.get(requiredVar):
         raise ValueError(f'Missing required environment variable "{requiredVar}". Please create a .env file in the same directory as this script and define it.')
 
+print("Establishing a connection to slack...")
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 client = app.client
+
+print("Building a list of users, please stand by.")
+users_list = []
+cursor = "N/A"
+pages = 0
+while cursor:
+    data = ""
+    if cursor != "N/A":
+        data = client.users_list(cursor=cursor, limit=1000)
+    else:
+        data = client.users_list(limit=1000)
+    cursor = data["response_metadata"]["next_cursor"]
+    users_list.extend(data["members"])
+    pages += 1
+    print(f"Pages of users loaded: {pages}")
+print("All pages loaded, generating user mappings now.")
+del pages
+user_mappings = {}
+for user in users_list:
+    user_mappings[f"<@{user['id']}>"] = "@"+user["profile"]["display_name"] if user["profile"]["display_name"] else "@missing_display_name"
+
+print("User mappings loaded. User count:", len(user_mappings))
 
 if __name__ == "__main__":
     print("^D at any time to terminate program")
@@ -36,8 +59,12 @@ if __name__ == "__main__":
                             )
                             messages = res["messages"]
                             texts = {}
+                            print("Building messages, this might take a little bit...")
                             for i in range(len(messages)):
-                                texts[f'{messages[i]["text"]} ({messages[i]["ts"]})'] = i
+                                label = f'{messages[i]["text"]} ({messages[i]["ts"]})'
+                                for user in user_mappings:
+                                    label = label.replace(user, user_mappings[user])
+                                texts[label] = i
                             found = messages[fp.menu(texts, "Please select the message to reply to as a thread")]
                             ts = found["ts"]
                         except Exception as E:
