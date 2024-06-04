@@ -10,7 +10,9 @@ fp.replitCursor = fp.bcolors.REPLIT + ">>>" + fp.bcolors.RESET
 
 load_dotenv()
 
-print(dir(fp))
+for requiredVar in ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"]:
+    if not os.environ.get(requiredVar):
+        raise ValueError(f'Missing required environment variable "{requiredVar}". Please create a .env file in the same directory as this script and define it.')
 
 # Initializes your app with your bot token and socket mode handler
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
