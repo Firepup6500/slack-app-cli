@@ -36,7 +36,7 @@ print("All pages loaded, generating user mappings now.")
 del pages
 user_mappings = {}
 for user in users_list:
-    user_mappings[f"<@{user['id']}>"] = "@"+user["profile"]["display_name"] if user["profile"]["display_name"] else "@missing_display_name"
+    user_mappings[f"<@{user['id']}>"] = f'<@{user["profile"]["display_name"]}>' if user["profile"]["display_name"] else "<@{user['id']}>"
 
 print("User mappings loaded. User count:", len(user_mappings))
 
