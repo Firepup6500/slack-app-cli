@@ -96,20 +96,20 @@ if __name__ == "__main__":
                         while 1:
                             msg = input("[THREAD] Message (Raw text, not blocks)")
                             try:
-                                print(
-                                    client.chat_postMessage(
-                                        channel=chan, text=msg, thread_ts=ts
-                                    )
+                                client.chat_postMessage(
+                                    channel=chan, text=msg, thread_ts=ts
                                 )
+                                print("Message sent (to the thread)!")
                             except Exception as E:
                                 print(f"Exception: {E}")
                     except KeyboardInterrupt:
                         print()
                 if ts:
                     continue
-                msg = input("Message (Raw text, not blocks)")
+                msg = input("[CHANNEL] Message (Raw text, not blocks)")
                 try:
-                    print(client.chat_postMessage(channel=chan, text=msg))
+                    client.chat_postMessage(channel=chan, text=msg)
+                    print("Message sent (to the channel)!")
                 except Exception as E:
                     print(f"Exception: {E}")
         except KeyboardInterrupt:
