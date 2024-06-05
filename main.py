@@ -1,4 +1,4 @@
-import os
+import os, sys
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from dotenv import load_dotenv
@@ -22,31 +22,42 @@ print("Establishing a connection to slack...")
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 client = app.client
 
-print("Building a list of users, please stand by.")
-users_list = []
-cursor = "N/A"
-pages = 0
-while cursor:
-    data = ""
-    if cursor != "N/A":
-        data = client.users_list(cursor=cursor, limit=1000)
-    else:
-        data = client.users_list(limit=1000)
-    cursor = data["response_metadata"]["next_cursor"]
-    users_list.extend(data["members"])
-    pages += 1
-    print(f"Pages of users loaded: {pages}")
-print("All pages loaded, generating user mappings now.")
-del pages
-user_mappings = {}
-for user in users_list:
-    user_mappings[f"<@{user['id']}>"] = (
-        f"<@{user['profile']['display_name']}>"
-        if user["profile"]["display_name"]
-        else f"<@{user['id']}>"
-    )
+userMappings = {}
+try:
+    if "--no-cache" in sys.argv:
+        raise ImportError("User requested to skip cache")
+    print("Trying to load user mappings from cache...")
+    from cache import userMappings
+except ImportError:
+    users_list = []
+    print("Cache load failed, falling back to full load from slack...")
+    cursor = "N/A"
+    pages = 0
+    while cursor:
+        data = ""
+        if cursor != "N/A":
+            data = client.users_list(cursor=cursor, limit=1000)
+        else:
+            data = client.users_list(limit=1000)
+        cursor = data["response_metadata"]["next_cursor"]
+        users_list.extend(data["members"])
+        pages += 1
+        print(f"Pages of users loaded: {pages}")
+    del pages
+    print("Building user mappings now, this shouldn't take long...")
+    userMappings = {}
+    for user in users_list:
+        userMappings[f"<@{user['id']}>"] = (
+            f"<@{user['profile']['display_name']}>"
+            if user["profile"]["display_name"]
+            else f"<@{user['id']}>"
+        )
+    print("All mappings generated, writing cache file now...")
+    with open("cache.py", "w") as cacheFile:
+        cacheFile.write(f"userMappings = {userMappings}")
+    print("Cache saved.")
 
-print("User mappings loaded. User count:", len(user_mappings))
+print("User mappings loaded. User count:", len(userMappings))
 
 if __name__ == "__main__":
     print("^D at any time to terminate program")
@@ -74,8 +85,8 @@ if __name__ == "__main__":
                             print("Building messages, this might take a little bit...")
                             for i in range(len(messages)):
                                 label = f'{messages[i]["text"]} ({messages[i]["ts"]})'
-                                for user in user_mappings:
-                                    label = label.replace(user, user_mappings[user])
+                                for user in userMappings:
+                                    label = label.replace(user, userMappings[user])
                                 texts[label] = i
                             found = messages[
                                 fp.menu(
