@@ -48,11 +48,11 @@ except ImportError:
     userMappings = {}
     for user in users_list:
         userMappings[f"<@{user['id']}>"] = (
-            f"<@{user['profile']['display_name']}>"
-            if user["profile"]["display_name"]
+            f"<@{user['profile']['display_name_normalized']}>"
+            if user["profile"]["display_name_normalized"]
             else (
-                f"<@{user['profile']['real_name']}>"
-                if user["profile"]["real_name"]
+                f"<@{user['profile']['real_name_normalized']}>"
+                if user["profile"]["real_name_normalized"]
                 else f"<@{user['id']}>"
             )
         )
