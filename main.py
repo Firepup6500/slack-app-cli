@@ -15,7 +15,7 @@ load_dotenv()
 for requiredVar in ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"]:
     if not os.environ.get(requiredVar):
         raise ValueError(
-            f'Missing required environment variable "{requiredVar}". Please create a .env file in the same directory as this script and define it.'
+            f'Missing required environment variable "{requiredVar}". Please create a .env file in the same directory as this script and define the missing variable.'
         )
 
 print("Establishing a connection to slack...")
@@ -25,6 +25,7 @@ client = app.client
 userMappings = {}
 try:
     if "--no-cache" in sys.argv:
+        print("Skipping cache on user request")
         raise ImportError("User requested to skip cache")
     print("Trying to load user mappings from cache...")
     from cache import userMappings
@@ -45,7 +46,6 @@ except ImportError:
         print(f"Pages of users loaded: {pages}")
     del pages
     print("Building user mappings now, this shouldn't take long...")
-    userMappings = {}
     for user in users_list:
         userMappings[f"<@{user['id']}>"] = (
             f"<@{user['profile']['display_name_normalized']}>"
