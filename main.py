@@ -119,7 +119,7 @@ if __name__ == "__main__":
                             ts = found["ts"]
                         except Exception as E:
                             print("[WARN] Exception:")
-                            for line in format_exc:
+                            for line in format_exc():
                                 print(f"[WARN] {line}")
                             break
                     else:
@@ -139,7 +139,7 @@ if __name__ == "__main__":
                                 print("[INFO] Message sent (to the thread)!")
                             except Exception as E:
                                 print("[WARN] Exception:")
-                                for line in format_exc:
+                                for line in format_exc():
                                     print(f"[WARN] {line}")
                                 break
                     except KeyboardInterrupt:
@@ -154,7 +154,7 @@ if __name__ == "__main__":
                     print("[INFO] Message sent (to the channel)!")
                 except Exception as E:
                     print("[WARN] Exception:")
-                    for line in format_exc:
+                    for line in format_exc():
                         print(f"[WARN] {line}")
                     break
         except KeyboardInterrupt:
