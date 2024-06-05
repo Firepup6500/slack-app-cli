@@ -18,24 +18,25 @@ for requiredVar in ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"]:
             f'Missing required environment variable "{requiredVar}". Please create a .env file in the same directory as this script and define the missing variable.'
         )
 
-print("Establishing a connection to slack...")
+print("[INFO] Establishing a connection to slack...")
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 client = app.client
 
 userMappings = {}
 try:
     if "--no-cache" in sys.argv:
-        print("Skipping cache on user request")
+        print("[INFO] Skipping cache on user request")
         raise ImportError("User requested to skip cache")
-    print("Trying to load user mappings from cache...")
+    print("[INFO] Trying to load user mappings from cache...")
     from cache import userMappings
 
     print(
-        "Cache load OK. Reminder: If you need to regenerate the cache, call the script with `--no-cache`"
+        """[INFO] Cache load OK.
+[INFO] Reminder: If you need to regenerate the cache, call the script with `--no-cache`"""
     )
 except ImportError:
     users_list = []
-    print("Cache load failed, falling back to full load from slack...")
+    print("[WARN] Cache load failed, falling back to full load from slack...")
     cursor = "N/A"
     pages = 0
     while (
@@ -49,9 +50,9 @@ except ImportError:
         cursor = data["response_metadata"]["next_cursor"]
         users_list.extend(data["members"])
         pages += 1
-        print(f"Pages of users loaded: {pages}")
+        print(f"[INFO] Pages of users loaded: {pages} (Estimated user count: {len(pages) * 1000}")
     del pages
-    print("Building user mappings now, this shouldn't take long...")
+    print("[INFO] Building user mappings now, this shouldn't take long...")
     for (
         user
     ) in (
@@ -66,21 +67,21 @@ except ImportError:
                 else f"<@{user['id']}>"  # User is missing a real name too... Fallback to ID
             )
         )
-    print("All mappings generated, writing cache file now...")
+    print("[INFO] All mappings generated, writing cache file now...")
     with open(
         "cache.py", "w"
     ) as cacheFile:  # It is many times faster to load from a local file instead of from slack
         cacheFile.write(f"userMappings = {userMappings}")
-    print("Cache saved.")
+    print("[INFO] Cache saved.")
 
-print("User mappings loaded. User count:", len(userMappings))
+print("[INFO] User mappings loaded. User count:", len(userMappings))
 
 if __name__ == "__main__":
-    print("^D at any time to terminate program")
+    print("[INFO] ^D at any time to terminate program")
     while 1:
         chan = input("Channel ID")
         try:
-            print("^C to change channel")
+            print("[INFO] ^C to change channel")
             while 1:
                 thread = input("Reply to a thread? (y|N)").lower().startswith("y")
                 ts = None
@@ -91,14 +92,14 @@ if __name__ == "__main__":
                     if not hasID:
                         try:
                             print(
-                                "Getting the last 50 messages for threading options..."
+                                "[INFO] Getting the last 50 messages for threading options..."
                             )
                             res = client.conversations_history(
                                 channel=chan, inclusive=True, limit=50
                             )
                             messages = res["messages"]
                             texts = {}
-                            print("Building messages, this might take a little bit...")
+                            print("[INFO] Building messages, this might take a little bit...")
                             for i in range(len(messages)):
                                 label = f'{messages[i]["text"]} ({messages[i]["ts"]})'
                                 for user in userMappings:
@@ -112,12 +113,12 @@ if __name__ == "__main__":
                             ]
                             ts = found["ts"]
                         except Exception as E:
-                            print(f"Exception: {E}")
+                            print(f"[WARN] Exception: {E}")
                             break
                     else:
                         ts = input("TS ID")
                     print(
-                        "^C to change/exit thread (^C twice if you want to change channel)"
+                        "[INFO] ^C to change/exit thread (^C twice if you want to change channel)"
                     )
                     try:
                         while 1:
@@ -128,9 +129,9 @@ if __name__ == "__main__":
                                 client.chat_postMessage(
                                     channel=chan, text=msg, thread_ts=ts
                                 )
-                                print("Message sent (to the thread)!")
+                                print("[INFO] Message sent (to the thread)!")
                             except Exception as E:
-                                print(f"Exception: {E}")
+                                print(f"[WARN] Exception: {E}")
                     except KeyboardInterrupt:
                         print()
                 if ts:
@@ -140,8 +141,8 @@ if __name__ == "__main__":
                 )
                 try:
                     client.chat_postMessage(channel=chan, text=msg)
-                    print("Message sent (to the channel)!")
+                    print("[INFO] Message sent (to the channel)!")
                 except Exception as E:
-                    print(f"Exception: {E}")
+                    print(f"[WARN] Exception: {E}")
         except KeyboardInterrupt:
             print()
