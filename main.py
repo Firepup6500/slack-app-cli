@@ -29,12 +29,13 @@ try:
         raise ImportError("User requested to skip cache")
     print("Trying to load user mappings from cache...")
     from cache import userMappings
+    print("Cache load OK. Reminder: If you need to regenerate the cache, call the script with `--no-cache`")
 except ImportError:
     users_list = []
     print("Cache load failed, falling back to full load from slack...")
     cursor = "N/A"
     pages = 0
-    while cursor:
+    while cursor:  # If slack gives us a cursor, then we ain't done loading user data yet
         data = ""
         if cursor != "N/A":
             data = client.users_list(cursor=cursor, limit=1000)
@@ -46,18 +47,18 @@ except ImportError:
         print(f"Pages of users loaded: {pages}")
     del pages
     print("Building user mappings now, this shouldn't take long...")
-    for user in users_list:
+    for user in users_list:  # Map user ID mentions to user name mentions, it's nicer when printing messages for thread selection.
         userMappings[f"<@{user['id']}>"] = (
             f"<@{user['profile']['display_name_normalized']}>"
             if user["profile"]["display_name_normalized"]
-            else (
+            else (  # User is missing a display name for some reason, fallback to real names
                 f"<@{user['profile']['real_name_normalized']}>"
                 if user["profile"]["real_name_normalized"]
-                else f"<@{user['id']}>"
+                else f"<@{user['id']}>"  # User is missing a real name too... Fallback to ID
             )
         )
     print("All mappings generated, writing cache file now...")
-    with open("cache.py", "w") as cacheFile:
+    with open("cache.py", "w") as cacheFile:  # It is many times faster to load from a local file instead of from slack
         cacheFile.write(f"userMappings = {userMappings}")
     print("Cache saved.")
 
