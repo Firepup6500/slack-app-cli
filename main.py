@@ -50,7 +50,10 @@ except ImportError:
         userMappings[f"<@{user['id']}>"] = (
             f"<@{user['profile']['display_name']}>"
             if user["profile"]["display_name"]
-            else f"<@{user['id']}>"
+            else (
+                f"<@{user['profile']['real_name']}>"
+                if user["profile"]["real_name"]
+                else f"<@{user['id']}>")
         )
     print("All mappings generated, writing cache file now...")
     with open("cache.py", "w") as cacheFile:
