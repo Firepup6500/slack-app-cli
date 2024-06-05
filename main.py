@@ -94,7 +94,7 @@ if __name__ == "__main__":
                     )
                     try:
                         while 1:
-                            msg = input("[THREAD] Message (Raw text, not blocks)")
+                            msg = input("[THREAD] Message (Raw text, not blocks)").replace("\\n", "\n")
                             try:
                                 client.chat_postMessage(
                                     channel=chan, text=msg, thread_ts=ts
@@ -106,7 +106,7 @@ if __name__ == "__main__":
                         print()
                 if ts:
                     continue
-                msg = input("[CHANNEL] Message (Raw text, not blocks)")
+                msg = input("[CHANNEL] Message (Raw text, not blocks)").replace("\\n", "\n")
                 try:
                     client.chat_postMessage(channel=chan, text=msg)
                     print("Message sent (to the channel)!")
