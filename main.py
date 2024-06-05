@@ -50,7 +50,9 @@ except ImportError:
         cursor = data["response_metadata"]["next_cursor"]
         users_list.extend(data["members"])
         pages += 1
-        print(f"[INFO] Pages of users loaded: {pages} (Estimated user count: {len(pages) * 1000}")
+        print(
+            f"[INFO] Pages of users loaded: {pages} (Estimated user count: {len(pages) * 1000}"
+        )
     del pages
     print("[INFO] Building user mappings now, this shouldn't take long...")
     for (
@@ -99,7 +101,9 @@ if __name__ == "__main__":
                             )
                             messages = res["messages"]
                             texts = {}
-                            print("[INFO] Building messages, this might take a little bit...")
+                            print(
+                                "[INFO] Building messages, this might take a little bit..."
+                            )
                             for i in range(len(messages)):
                                 label = f'{messages[i]["text"]} ({messages[i]["ts"]})'
                                 for user in userMappings:
