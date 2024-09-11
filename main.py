@@ -52,20 +52,21 @@ except ImportError:
         users_list.extend(data["members"])
         pages += 1
         print(
-            f"[INFO] Pages of users loaded: {pages} (Estimated user count: {len(pages) * 1000}"
+            f"[INFO] Pages of users loaded: {pages} (Estimated user count: {pages}000)"
         )
     del pages
     print("[INFO] Building user mappings now, this shouldn't take long...")
+    #print(users_list[38])
     for (
         user
     ) in (
         users_list
     ):  # Map user ID mentions to user name mentions, it's nicer when printing messages for thread selection.
         userMappings[f"<@{user['id']}>"] = (
-            f"<@{user['profile']['display_name_normalized']}>"
+            f"<@{user['profile']['display_name_normalized']}|{user['id']}>"
             if user["profile"]["display_name_normalized"]
             else (  # User is missing a display name for some reason, fallback to real names
-                f"<@{user['profile']['real_name_normalized']}>"
+                f"<@{user['profile']['real_name_normalized']}|{user['id']}>"
                 if user["profile"]["real_name_normalized"]
                 else f"<@{user['id']}>"  # User is missing a real name too... Fallback to ID
             )
@@ -90,7 +91,7 @@ if __name__ == "__main__":
                 ts = None
                 if thread:
                     hasID = (
-                        input("Do you have the TS ID? (y|N))").lower().startswith("y")
+                        input("Do you have the TS ID? (y|N)").lower().startswith("y")
                     )
                     if not hasID:
                         try:
@@ -150,8 +151,8 @@ if __name__ == "__main__":
                     "\\n", "\n"
                 )
                 try:
-                    client.chat_postMessage(channel=chan, text=msg)
-                    print("[INFO] Message sent (to the channel)!")
+                    ts = client.chat_postMessage(channel=chan, text=msg)['ts']
+                    print(f"[INFO] Message sent (to the channel)! (TS ID: {ts}")
                 except Exception as E:
                     print("[WARN] Exception:")
                     for line in format_exc().split("\n")[:-1]:
