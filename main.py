@@ -152,7 +152,7 @@ if __name__ == "__main__":
                 )
                 try:
                     ts = client.chat_postMessage(channel=chan, text=msg)['ts']
-                    print(f"[INFO] Message sent (to the channel)! (TS ID: {ts}")
+                    print(f"[INFO] Message sent (to the channel)! (TS ID: {ts})")
                 except Exception as E:
                     print("[WARN] Exception:")
                     for line in format_exc().split("\n")[:-1]:
