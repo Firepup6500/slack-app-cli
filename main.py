@@ -56,7 +56,7 @@ except ImportError:
         )
     del pages
     print("[INFO] Building user mappings now, this shouldn't take long...")
-    #print(users_list[38])
+    # print(users_list[38])
     for (
         user
     ) in (
@@ -151,7 +151,7 @@ if __name__ == "__main__":
                     "\\n", "\n"
                 )
                 try:
-                    ts = client.chat_postMessage(channel=chan, text=msg)['ts']
+                    ts = client.chat_postMessage(channel=chan, text=msg)["ts"]
                     print(f"[INFO] Message sent (to the channel)! (TS ID: {ts})")
                 except Exception as E:
                     print("[WARN] Exception:")
