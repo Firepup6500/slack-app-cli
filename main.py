@@ -107,7 +107,7 @@ if __name__ == "__main__":
                                 "[INFO] Building messages, this might take a little bit..."
                             )
                             for i in range(len(messages)):
-                                label = f'{messages[i]["text"]} ({messages[i]["ts"]})'
+                                label = f'[{messages[i]["ts"]}] <@{messages[i]["user"]}>: {messages[i]["text"]}'
                                 for user in userMappings:
                                     label = label.replace(user, userMappings[user])
                                 texts[label] = i
