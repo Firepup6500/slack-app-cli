@@ -107,6 +107,18 @@ if __name__ == "__main__":
                                 "[INFO] Building messages, this might take a little bit..."
                             )
                             for i in range(len(messages)):
+                                if not messages[i].get("user") and messages[i].get(
+                                    "username"
+                                ):  # Workflows don't have a userid, obviously
+                                    messages[i][
+                                        "user"
+                                    ] = f'{messages[i].get("username")}|WORKFLOW'
+                                if not messages[i].get("user") and messages[i].get(
+                                    "subtype"
+                                ):  # Apps sending to channel also don't...
+                                    messages[i]["user"] = messages[i]["root"][
+                                        "user"
+                                    ]  # This is probably technically wrong, but I don't care.
                                 label = f'[{messages[i]["ts"]}] <@{messages[i]["user"]}>: {messages[i]["text"]}'
                                 for user in userMappings:
                                     label = label.replace(user, userMappings[user])
