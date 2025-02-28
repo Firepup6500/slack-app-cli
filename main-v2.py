@@ -23,6 +23,47 @@ print("[INFO] Establishing a connection to slack...")
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 client = app.client
 
+
+def buildThreadedMessages(messages: dict) -> dict:
+    print("[INFO] Building messages, this might take a little bit...")
+    texts = {}
+    for i in range(len(messages)):
+        if not messages[i].get("user") and messages[i].get(
+            "username"
+        ):  # Workflows don't have a userid, obviously
+            messages[i]["user"] = f'{messages[i].get("username")}|WORKFLOW'
+        if not messages[i].get("user") and messages[i].get(
+            "subtype"
+        ):  # Apps sending to channel also don't...
+            messages[i]["user"] = messages[i]["root"][
+                "user"
+            ]  # This is probably technically wrong, but I don't care.
+        label = f'[{messages[i]["ts"]}] <@{messages[i]["user"]}>: {messages[i]["text"]}'
+        for user in userMappings:
+            label = label.replace(user, userMappings[user])
+        texts[label] = i
+    return texts
+
+
+def buildMessages(messages: dict) -> dict:
+    print("[INFO] Building messages, this might take a little bit...")
+    for i in range(len(messages) - 1, 0, -1):
+        if not messages[i].get("user") and messages[i].get(
+            "username"
+        ):  # Workflows don't have a userid, obviously
+            messages[i]["user"] = f'{messages[i].get("username")}|WORKFLOW'
+        if not messages[i].get("user") and messages[i].get(
+            "subtype"
+        ):  # Apps sending to channel also don't...
+            messages[i]["user"] = messages[i]["root"][
+                "user"
+            ]  # This is probably technically wrong, but I don't care.
+        msg = f'[MSGS] [{messages[i]["ts"]}] <@{messages[i]["user"]}>: {messages[i]["text"]}'
+        for user in userMappings:
+            msg = msg.replace(user, userMappings[user])
+        print(msg)
+
+
 userMappings = {}
 try:
     if "--no-cache" in sys.argv:
@@ -80,11 +121,30 @@ except ImportError:
 
 print("[INFO] User mappings loaded. User count:", len(userMappings))
 
+global inChannel
+inChannel = False
+
 if __name__ == "__main__":
     print("[INFO] ^D at any time to terminate program")
     while 1:
         chan = input("Channel ID")
         try:
+            try:
+                print(
+                    "[INFO] Trying to load the last 50 messages sent in this channel..."
+                )
+                res = client.conversations_history(
+                    channel=chan, inclusive=True, limit=50
+                )
+                buildMessages(res["messages"])
+                del res
+            except Exception as E:
+                print("[WARN] Exception")
+                for line in format_exc().split("\n")[:-1]:
+                    print(f"[WARN] {line}")
+                print(
+                    "[HELP] The bot probably isn't in this channel. If it's public you can likely send anyways, but this will fail otherwise."
+                )
             print("[INFO] ^C to change channel")
             while 1:
                 thread = input("Reply to a thread? (y|N)").lower().startswith("y")
@@ -102,27 +162,7 @@ if __name__ == "__main__":
                                 channel=chan, inclusive=True, limit=50
                             )
                             messages = res["messages"]
-                            texts = {}
-                            print(
-                                "[INFO] Building messages, this might take a little bit..."
-                            )
-                            for i in range(len(messages)):
-                                if not messages[i].get("user") and messages[i].get(
-                                    "username"
-                                ):  # Workflows don't have a userid, obviously
-                                    messages[i][
-                                        "user"
-                                    ] = f'{messages[i].get("username")}|WORKFLOW'
-                                if not messages[i].get("user") and messages[i].get(
-                                    "subtype"
-                                ):  # Apps sending to channel also don't...
-                                    messages[i]["user"] = messages[i]["root"][
-                                        "user"
-                                    ]  # This is probably technically wrong, but I don't care.
-                                label = f'[{messages[i]["ts"]}] <@{messages[i]["user"]}>: {messages[i]["text"]}'
-                                for user in userMappings:
-                                    label = label.replace(user, userMappings[user])
-                                texts[label] = i
+                            texts = buildThreadedMessages(messages)
                             found = messages[
                                 fp.menu(
                                     texts,
@@ -134,6 +174,9 @@ if __name__ == "__main__":
                             print("[WARN] Exception:")
                             for line in format_exc().split("\n")[:-1]:
                                 print(f"[WARN] {line}")
+                            print(
+                                "[HELP] Does the bot have access to the channel you're trying to see?"
+                            )
                             break
                     else:
                         ts = input("TS ID")
