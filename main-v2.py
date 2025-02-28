@@ -45,9 +45,9 @@ def buildThreadedMessages(messages: dict) -> dict:
     return texts
 
 
-def buildMessages(messages: dict) -> dict:
+def buildMessages(messages: dict) -> str:
     print("[INFO] Building messages, this might take a little bit...")
-    for i in range(len(messages) - 1, 0, -1):
+    for i in range(len(messages) - 1, -1, -1):
         if not messages[i].get("user") and messages[i].get(
             "username"
         ):  # Workflows don't have a userid, obviously
@@ -62,6 +62,7 @@ def buildMessages(messages: dict) -> dict:
         for user in userMappings:
             msg = msg.replace(user, userMappings[user])
         print(msg)
+    return messages[0]["ts"]
 
 
 userMappings = {}
@@ -104,10 +105,10 @@ except ImportError:
         users_list
     ):  # Map user ID mentions to user name mentions, it's nicer when printing messages for thread selection.
         userMappings[f"<@{user['id']}>"] = (
-            f"<@{user['profile']['display_name_normalized']}|{user['id']}>"
+            f"<@{user['id']}|{user['profile']['display_name_normalized']}>"
             if user["profile"]["display_name_normalized"]
             else (  # User is missing a display name for some reason, fallback to real names
-                f"<@{user['profile']['real_name_normalized']}|{user['id']}>"
+                f"<@{user['id']}|{user['profile']['real_name_normalized']}>"
                 if user["profile"]["real_name_normalized"]
                 else f"<@{user['id']}>"  # User is missing a real name too... Fallback to ID
             )
