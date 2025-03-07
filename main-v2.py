@@ -130,6 +130,7 @@ if __name__ == "__main__":
     while 1:
         chan = input("Channel ID")
         try:
+            oldest_ts = ""
             try:
                 print(
                     "[INFO] Trying to load the last 50 messages sent in this channel..."
@@ -138,6 +139,7 @@ if __name__ == "__main__":
                     channel=chan, inclusive=True, limit=50
                 )
                 buildMessages(res["messages"])
+                oldest_ts = res["messages"][0]["ts"]
                 del res
             except Exception as E:
                 print("[WARN] Exception")
@@ -187,7 +189,7 @@ if __name__ == "__main__":
                     try:
                         while 1:
                             msg = input(
-                                "[THREAD] Message (Raw text, not blocks)"
+                                "[THRD] Message (Raw text, not blocks)"
                             ).replace("\\n", "\n")
                             try:
                                 client.chat_postMessage(
@@ -202,13 +204,50 @@ if __name__ == "__main__":
                     except KeyboardInterrupt:
                         print()
                 if ts:
+                    try:
+                        print(f"[INFO] Trying to load messages since {oldest_ts}...")
+                        res = client.conversations_history(
+                            channel=chan, inclusive=True, limit=200, oldest=oldest_ts
+                        )
+                        if len(res["messages"]) > 1:
+                            buildMessages(res["messages"][:-1])
+                            oldest_ts = res["messages"][0]["ts"]
+                        else:
+                            print("[INFO] No new messages")
+                        del res
+                    except Exception as E:
+                        print("[WARN] Exception")
+                        for line in format_exc().split("\n")[:-1]:
+                            print(f"[WARN] {line}")
+                        print(
+                            "[HELP] Does the bot have access to the channel you're trying to see?"
+                        )
                     continue
-                msg = input("[CHANNEL] Message (Raw text, not blocks)").replace(
+                msg = input("[CHAN] Message (Raw text, not blocks)").replace(
                     "\\n", "\n"
                 )
                 try:
-                    ts = client.chat_postMessage(channel=chan, text=msg)["ts"]
-                    print(f"[INFO] Message sent (to the channel)! (TS ID: {ts})")
+                    if msg != "":
+                        ts = client.chat_postMessage(channel=chan, text=msg)["ts"]
+                        print(f"[INFO] Message sent (to the channel)! (TS ID: {ts})")
+                    try:
+                        print(f"[INFO] Trying to load messages since {oldest_ts}...")
+                        res = client.conversations_history(
+                            channel=chan, inclusive=True, limit=200, oldest=oldest_ts
+                        )
+                        if len(res["messages"]) > 1:
+                            buildMessages(res["messages"][:-1])
+                            oldest_ts = res["messages"][0]["ts"]
+                        else:
+                            print("[INFO] No new messages")
+                        del res
+                    except Exception as E:
+                        print("[WARN] Exception")
+                        for line in format_exc().split("\n")[:-1]:
+                            print(f"[WARN] {line}")
+                        print(
+                            "[HELP] Does the bot have access to the channel you're trying to see?"
+                        )
                 except Exception as E:
                     print("[WARN] Exception:")
                     for line in format_exc().split("\n")[:-1]:
