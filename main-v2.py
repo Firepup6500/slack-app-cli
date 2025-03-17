@@ -31,7 +31,7 @@ def buildThreadedMessages(messages: dict) -> dict:
         if not messages[i].get("user") and messages[i].get(
             "username"
         ):  # Workflows don't have a userid, obviously
-            messages[i]["user"] = f'{messages[i].get("username")}|WORKFLOW'
+            messages[i]["user"] = f'WORKFLOW|{messages[i].get("username")}'
         if not messages[i].get("user") and messages[i].get(
             "subtype"
         ):  # Apps sending to channel also don't...
@@ -51,7 +51,7 @@ def buildMessages(messages: dict) -> str:
         if not messages[i].get("user") and messages[i].get(
             "username"
         ):  # Workflows don't have a userid, obviously
-            messages[i]["user"] = f'{messages[i].get("username")}|WORKFLOW'
+            messages[i]["user"] = f'WORKFLOW|{messages[i].get("username")}'
         if not messages[i].get("user") and messages[i].get(
             "subtype"
         ):  # Apps sending to channel also don't...
