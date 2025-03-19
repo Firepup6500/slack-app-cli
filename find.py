@@ -9,4 +9,4 @@ username = " ".join(argv)
 
 for k, v in userMappings.items():
     if username in v:
-        print(f"Found it! {k} ({v}")
+        print(f"Found it! {k} ({v})")
