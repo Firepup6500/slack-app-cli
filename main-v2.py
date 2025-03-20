@@ -1,6 +1,6 @@
-import os, sys
+from os import environ as env
+from sys import argv
 from slack_bolt import App
-from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
 import firepup650 as fp
@@ -17,13 +17,13 @@ fp.replitCursor = (
 load_dotenv()
 
 for requiredVar in ["SLACK_BOT_TOKEN"]:
-    if not os.environ.get(requiredVar):
+    if not env.get(requiredVar):
         raise ValueError(
             f'Missing required environment variable "{requiredVar}". Please create a .env file in the same directory as this script and define the missing variable.'
         )
 
 print("[INFO] Establishing a connection to slack...")
-app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
+app = App(token=env.get("SLACK_BOT_TOKEN"))
 client = app.client
 
 
@@ -151,7 +151,7 @@ userMappings = {}
 botMappings = {}
 cursor = "N/A"
 try:
-    if "--no-cache" in sys.argv:
+    if "--no-cache" in argv:
         print("[INFO] Skipping cache on user request")
         raise ImportError("User requested to skip cache")
     print("[INFO] Trying to load user and app mappings from cache...")
