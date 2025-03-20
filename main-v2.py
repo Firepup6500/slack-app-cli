@@ -1,9 +1,12 @@
 import os, sys
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
 import firepup650 as fp
 from traceback import format_exc
+from time import sleep
+from base64 import b64encode
 
 input = fp.replitInput
 
@@ -13,7 +16,7 @@ fp.replitCursor = (
 
 load_dotenv()
 
-for requiredVar in ["SLACK_BOT_TOKEN", "SLACK_APP_TOKEN"]:
+for requiredVar in ["SLACK_BOT_TOKEN"]:
     if not os.environ.get(requiredVar):
         raise ValueError(
             f'Missing required environment variable "{requiredVar}". Please create a .env file in the same directory as this script and define the missing variable.'
@@ -24,21 +27,109 @@ app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 client = app.client
 
 
+def encode(string: str) -> str:
+    return b64encode(string.encode("utf-8")).decode("utf-8")
+
+
+def __writeCache(userCache, botCache, cursorCache):
+    with open(
+        "cache.py", "w"
+    ) as cacheFile:  # It is many times faster to load from a local file instead of from slack
+        cacheFile.writelines(
+            [
+                f"userMappings = {userCache}\n",
+                f"botMappings = {botCache}\n",
+                f'cursorCache = "{cursorCache}"\n',
+            ]
+        )
+    print("[INFO] Cache saved.")
+
+
+def __generateCache(userCache, botCache, cursor):
+    users_list = []
+    pages = 0
+    while (
+        cursor
+    ):  # If slack gives us a cursor, then we ain't done loading user data yet
+        data = None
+        while not data:  # Ratelimit logic
+            try:
+                if cursor != "N/A":
+                    data = client.users_list(cursor=cursor, limit=1000)
+                else:
+                    data = client.users_list(limit=1000)
+            except SlackApiError as e:
+                retry = e.response.headers["retry-after"]
+                print(
+                    f"[WARN] Ratelimit hit! Sleeping for {retry} seconds as the retry-after header has specified"
+                )
+                sleep(int(retry))
+                print("[WARN] Resuming..")
+        cursor = data["response_metadata"]["next_cursor"]
+        users_list.extend(data["members"])
+        pages += 1
+        print(
+            f"[INFO] Pages of users loaded: {pages} ({'User count is less than' if not cursor else 'Estimated user count so far:'} {pages}000)"
+        )
+    if len(users_list) == 0:
+        exit(
+            f"[EXIT] Slack returned exactly zero users when given a cursor, which means my cursor is corrupt. Please delete cache.py and re-run the script."
+        )
+    cursorCache = encode(f"user:{users_list[-1]['id']}")
+    if len(users_list) == 1:
+        print("[INFO] No new users to load.")
+        return userCache, botCache, cursorCache
+    del pages
+    print("[INFO] Building user and bot mappings now, this shouldn't take long...")
+    for (
+        user
+    ) in (
+        users_list
+    ):  # Map user ID mentions to user ID + name mentions, it's nicer when printing messages.
+        userCache[f"<@{user['id']}>"] = (
+            f"<@{user['id']}|{user['profile']['display_name_normalized']}>"
+            if user["profile"].get("display_name_normalized")
+            else (  # User is missing a display name for some reason, fallback to real names
+                f"<@{user['id']}|{user['profile']['real_name_normalized']}>"
+                if user["profile"].get("real_name_normalized")
+                else f"<@{user['id']}|{user['name']}>"  # User is missing a real name too... Fallback to raw name
+            )
+        )
+        if user["is_bot"]:
+            botCache[user["profile"]["bot_id"]] = user["id"]
+    return userCache, botCache, cursorCache
+
+
+def __innerMessageParser(message: dict) -> dict:
+    try:
+        if not message.get("user") and message.get("bot_id"):  # Apps sometimes don't...
+            bot_id = message["bot_id"]
+            if botMappings.get(bot_id):
+                message["user"] = botMappings[bot_id]
+            else:
+                print(
+                    """[WARN] Unknown bot {bot_id}!
+[WARN] Cache may be out of date!"""
+                )
+                message["user"] = f"{bot_id}|UNKNOWN BOT"
+    except Exception:
+        print("[WARN] Exception")
+        for line in format_exc().split("\n")[:-1]:
+            print(f"[WARN] {line}")
+        print(f"[HELP] Raw message that caused this error: {message}")
+        message["user"] = "AN EXCEPTION OCCURED|UNKOWN USER"
+    if not message.get("user"):
+        print(message)
+        message["user"] = "FALLBACK|UNKNOWN USER"
+    return message
+
+
 def buildThreadedMessages(messages: dict) -> dict:
     print("[INFO] Building messages, this might take a little bit...")
     texts = {}
     for i in range(len(messages)):
-        if not messages[i].get("user") and messages[i].get(
-            "username"
-        ):  # Workflows don't have a userid, obviously
-            messages[i]["user"] = f'WORKFLOW|{messages[i].get("username")}'
-        if not messages[i].get("user") and messages[i].get(
-            "subtype"
-        ):  # Apps sending to channel also don't...
-            messages[i]["user"] = messages[i]["root"][
-                "user"
-            ]  # This is probably technically wrong, but I don't care.
-        label = f'[{messages[i]["ts"]}] <@{messages[i]["user"]}>: {messages[i]["text"]}'
+        message = __innerMessageParser(messages[i])
+        label = f'[{message["ts"]}] <@{message["user"]}>: {message["text"]}'
         for user in userMappings:
             label = label.replace(user, userMappings[user])
         texts[label] = i
@@ -48,17 +139,8 @@ def buildThreadedMessages(messages: dict) -> dict:
 def buildMessages(messages: dict) -> str:
     print("[INFO] Building messages, this might take a little bit...")
     for i in range(len(messages) - 1, -1, -1):
-        if not messages[i].get("user") and messages[i].get(
-            "username"
-        ):  # Workflows don't have a userid, obviously
-            messages[i]["user"] = f'WORKFLOW|{messages[i].get("username")}'
-        if not messages[i].get("user") and messages[i].get(
-            "subtype"
-        ):  # Apps sending to channel also don't...
-            messages[i]["user"] = messages[i]["root"][
-                "user"
-            ]  # This is probably technically wrong, but I don't care.
-        msg = f'[MSGS] [{messages[i]["ts"]}] <@{messages[i]["user"]}>: {messages[i]["text"]}'
+        message = __innerMessageParser(messages[i])
+        msg = f'[MSGS] [{message["ts"]}] <@{message["user"]}>: {message["text"]}'
         for user in userMappings:
             msg = msg.replace(user, userMappings[user])
         print(msg)
@@ -66,61 +148,34 @@ def buildMessages(messages: dict) -> str:
 
 
 userMappings = {}
+botMappings = {}
+cursor = "N/A"
 try:
     if "--no-cache" in sys.argv:
         print("[INFO] Skipping cache on user request")
         raise ImportError("User requested to skip cache")
-    print("[INFO] Trying to load user mappings from cache...")
-    from cache import userMappings
+    print("[INFO] Trying to load user and app mappings from cache...")
+    from cache import userMappings, cursorCache, botMappings
 
     print(
         """[INFO] Cache load OK.
 [INFO] Reminder: If you need to regenerate the cache, call the script with `--no-cache`"""
     )
+    print("[INFO] Checking for slack users newer than my cache...")
+    userMappings, botMappings, cursor = __generateCache(
+        userMappings, botMappings, cursorCache
+    )
+    if cursor != cursorCache:
+        print("[INFO] New user and app mappings generated, writing cache file now...")
+        __writeCache(userMappings, botMappings, cursor)
 except ImportError:
-    users_list = []
     print("[WARN] Cache load failed, falling back to full load from slack...")
-    cursor = "N/A"
-    pages = 0
-    while (
-        cursor
-    ):  # If slack gives us a cursor, then we ain't done loading user data yet
-        data = ""
-        if cursor != "N/A":
-            data = client.users_list(cursor=cursor, limit=1000)
-        else:
-            data = client.users_list(limit=1000)
-        cursor = data["response_metadata"]["next_cursor"]
-        users_list.extend(data["members"])
-        pages += 1
-        print(
-            f"[INFO] Pages of users loaded: {pages} (Estimated user count: {pages}000)"
-        )
-    del pages
-    print("[INFO] Building user mappings now, this shouldn't take long...")
-    # print(users_list[38])
-    for (
-        user
-    ) in (
-        users_list
-    ):  # Map user ID mentions to user name mentions, it's nicer when printing messages for thread selection.
-        userMappings[f"<@{user['id']}>"] = (
-            f"<@{user['id']}|{user['profile']['display_name_normalized']}>"
-            if user["profile"]["display_name_normalized"]
-            else (  # User is missing a display name for some reason, fallback to real names
-                f"<@{user['id']}|{user['profile']['real_name_normalized']}>"
-                if user["profile"]["real_name_normalized"]
-                else f"<@{user['id']}>"  # User is missing a real name too... Fallback to ID
-            )
-        )
-    print("[INFO] All mappings generated, writing cache file now...")
-    with open(
-        "cache.py", "w"
-    ) as cacheFile:  # It is many times faster to load from a local file instead of from slack
-        cacheFile.write(f"userMappings = {userMappings}")
-    print("[INFO] Cache saved.")
+    userMappings, botMappings, cursor = __generateCache({}, {}, "N/A")
+    print("[INFO] All user and app mappings generated, writing cache file now...")
+    __writeCache(userMappings, botMappings, cursor)
 
 print("[INFO] User mappings loaded. User count:", len(userMappings))
+print("[INFO] Bot  mappings loaded. Bot  count:", len(botMappings))
 
 global inChannel
 inChannel = False
