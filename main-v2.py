@@ -7,6 +7,7 @@ import firepup650 as fp
 from traceback import format_exc
 from time import sleep
 from base64 import b64encode
+from typing import NoReturn
 
 input = fp.replitInput
 
@@ -147,38 +148,7 @@ def buildMessages(messages: dict) -> str:
     return messages[0]["ts"]
 
 
-userMappings = {}
-botMappings = {}
-cursor = "N/A"
-try:
-    if "--no-cache" in argv:
-        print("[INFO] Skipping cache on user request")
-        raise ImportError("User requested to skip cache")
-    print("[INFO] Trying to load user and app mappings from cache...")
-    from cache import userMappings, cursorCache, botMappings
-
-    print(
-        """[INFO] Cache load OK.
-[INFO] Reminder: If you need to regenerate the cache, call the script with `--no-cache`"""
-    )
-    print("[INFO] Checking for slack users newer than my cache...")
-    userMappings, botMappings, cursor = __generateCache(
-        userMappings, botMappings, cursorCache
-    )
-    if cursor != cursorCache:
-        print("[INFO] New user and app mappings generated, writing cache file now...")
-        __writeCache(userMappings, botMappings, cursor)
-except ImportError:
-    print("[WARN] Cache load failed, falling back to full load from slack...")
-    userMappings, botMappings, cursor = __generateCache({}, {}, "N/A")
-    print("[INFO] All user and app mappings generated, writing cache file now...")
-    __writeCache(userMappings, botMappings, cursor)
-
-print("[INFO] User mappings loaded. User count:", len(userMappings))
-print("[INFO] Bot  mappings loaded. Bot  count:", len(botMappings))
-
-if __name__ == "__main__":
-    print("[INFO] ^D at any time to terminate program")
+def messaging() -> NoReturn:
     while 1:
         chan = input("Channel ID")
         try:
@@ -307,3 +277,40 @@ if __name__ == "__main__":
                     break
         except KeyboardInterrupt:
             print()
+    # The below code will never run, but linters are dumb and need to be assured there is no possible return from a `NoReturn` function.
+    exit(1)
+
+
+userMappings = {}
+botMappings = {}
+cursor = "N/A"
+try:
+    if "--no-cache" in argv:
+        print("[INFO] Skipping cache on user request")
+        raise ImportError("User requested to skip cache")
+    print("[INFO] Trying to load user and app mappings from cache...")
+    from cache import userMappings, cursorCache, botMappings
+
+    print(
+        """[INFO] Cache load OK.
+[INFO] Reminder: If you need to regenerate the cache, call the script with `--no-cache`"""
+    )
+    print("[INFO] Checking for slack users newer than my cache...")
+    userMappings, botMappings, cursor = __generateCache(
+        userMappings, botMappings, cursorCache
+    )
+    if cursor != cursorCache:
+        print("[INFO] New user and app mappings generated, writing cache file now...")
+        __writeCache(userMappings, botMappings, cursor)
+except ImportError:
+    print("[WARN] Cache load failed, falling back to full load from slack...")
+    userMappings, botMappings, cursor = __generateCache({}, {}, "N/A")
+    print("[INFO] All user and app mappings generated, writing cache file now...")
+    __writeCache(userMappings, botMappings, cursor)
+
+print("[INFO] User mappings loaded. User count:", len(userMappings))
+print("[INFO] Bot  mappings loaded. Bot  count:", len(botMappings))
+
+if __name__ == "__main__":
+    print("[INFO] ^D at any time to terminate program")
+    messaging()
