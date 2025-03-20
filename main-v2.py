@@ -177,9 +177,6 @@ except ImportError:
 print("[INFO] User mappings loaded. User count:", len(userMappings))
 print("[INFO] Bot  mappings loaded. Bot  count:", len(botMappings))
 
-global inChannel
-inChannel = False
-
 if __name__ == "__main__":
     print("[INFO] ^D at any time to terminate program")
     while 1:
