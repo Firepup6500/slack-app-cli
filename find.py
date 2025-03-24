@@ -1,5 +1,8 @@
+# pylint: disable=redefined-builtin
+from sys import argv, exit
 from cache import userMappings
-from sys import argv
+
+# pylint: enable=redefined-builtin
 
 if len(argv) < 2:
     exit("No username specified to lookup")
