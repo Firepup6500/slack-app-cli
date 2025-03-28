@@ -64,11 +64,11 @@ def __generateCache(
     cursor: str = "N/A",
 ) -> tuple[dict, dict, dict, str]:
     if userCache is None:
-        userCache = []
+        userCache = {}
     if botCache is None:
-        botCache = []
+        botCache = {}
     if appCache is None:
-        appCache = []
+        appCache = {}
     users_list = []
     pages = 0
     while (
@@ -101,7 +101,7 @@ def __generateCache(
     cursorCache = encode(f"user:{users_list[-1]['id']}")
     if len(users_list) == 1:
         print("[INFO] No new users to load.")
-        return userCache, botCache, cursorCache
+        return userCache, botCache, appCache, cursorCache
     del pages
     print("[INFO] Building user and bot mappings now, this shouldn't take long...")
     for (
@@ -120,7 +120,11 @@ def __generateCache(
         )
         if user["is_bot"]:
             botCache[user["profile"]["bot_id"]] = user["id"]
-            appCache[user["profile"]["bot_id"]] = user["profile"]["api_app_id"]
+            if user["profile"].get("api_app_id"):
+                # appCache[user["profile"]["bot_id"]] = user["profile"]["api_app_id"]
+                appCache[user["profile"]["api_app_id"]] = user["profile"]["bot_id"]
+            else:
+                print(f'[WARN] Bot ID {user["profile"]["bot_id"]} has no app ID!')
     return userCache, botCache, appCache, cursorCache
 
 
@@ -130,12 +134,38 @@ def __innerMessageParser(message: dict) -> dict:
             bot_id = message["bot_id"]
             if botMappings.get(bot_id):
                 message["user"] = botMappings[bot_id]
-            else:
-                print(
-                    """[WARN] Unknown bot {bot_id}!
+            elif appMappings.get(bot_id):
+                if appMappings.get(appMappings[bot_id]):
+                    message["user"] = botMappings[appMappings[appMappings[bot_id]]]
+                else:
+                    print(
+                        f"""[WARN] Unknown bot {bot_id}!
 [WARN] Cache may be out of date!"""
-                )
-                message["user"] = f"{bot_id}|UNKNOWN BOT"
+                    )
+                    message["user"] = f"{bot_id}|UNKNOWN BOT"
+            else:
+                try:
+                    print(
+                        f"[INFO] Querying slack for info about unknown bot {bot_id}..."
+                    )
+                    bot = client.bots_info(bot=bot_id)["bot"]
+                    appMappings[bot_id] = bot["app_id"]
+                    print("[INFO] Writing new app mapping to cache file...")
+                    __writeCache(userMappings, botMappings, appMappings, cursor)
+                    print("[INFO] Mapping cached.")
+                    if appMappings.get(appMappings[bot_id]):
+                        message["user"] = botMappings[appMappings[appMappings[bot_id]]]
+                    else:
+                        print(
+                            f"""[WARN] Unknown bot {bot_id}!
+[WARN] Cache may be out of date!"""
+                        )
+                        message["user"] = f"{bot_id}|UNKNOWN BOT"
+                except SlackApiError:
+                    print("[WARN] Exception")
+                    for line in format_exc().split("\n")[:-1]:
+                        print(f"[WARN] {line}")
+
     except Exception:  # pylint: disable=broad-exception-caught
         # ^ I don't know how I got here, I want to log it so it can be fixed
         print("[WARN] Exception")
@@ -500,24 +530,26 @@ try:
     if "--no-cache" in argv:
         print("[INFO] Skipping cache on user request")
         raise ImportError("User requested to skip cache")
-    print("[INFO] Trying to load user and app mappings from cache...")
-    from cache import userMappings, cursorCache, botMappings
+    print("[INFO] Trying to load user, bot, and app mappings from cache...")
+    from cache import userMappings, cursorCache, botMappings, appMappings
 
     print(
         """[INFO] Cache load OK.
 [INFO] Reminder: If you need to regenerate the cache, call the script with `--no-cache`"""
     )
     print("[INFO] Checking for slack users newer than my cache...")
-    userMappings, botMappings, cursor = __generateCache(
+    userMappings, botMappings, appMappings, cursor = __generateCache(
         userMappings, botMappings, appMappings, cursorCache
     )
     if cursor != cursorCache:
-        print("[INFO] New user and app mappings generated, writing cache file now...")
+        print(
+            "[INFO] New user, bot, and app mappings generated, writing cache file now..."
+        )
         __writeCache(userMappings, botMappings, appMappings, cursor)
 except ImportError:
     print("[WARN] Cache load failed, falling back to full load from slack...")
-    userMappings, botMappings, cursor = __generateCache()
-    print("[INFO] All user and app mappings generated, writing cache file now...")
+    userMappings, botMappings, appMappings, cursor = __generateCache()
+    print("[INFO] All user, bot, and app mappings generated, writing cache file now...")
     __writeCache(userMappings, botMappings, appMappings, cursor)
 
 print("[INFO] User mappings loaded. User count:", len(userMappings))
